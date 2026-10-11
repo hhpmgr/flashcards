@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flashcards</title>
+<!-- Optional font. Delete the next two lines to avoid contacting Google; the page falls back to a system font. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef3f6; --fg:#16212b; --muted:#566573; --card:#ffffff; --back:#f7fbf4;
+  --line:#c9d5de; --ink:#16212b; --good:#1f7a4d; --again:#b3402f; --focus:#0b57d0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10171d; --fg:#e7eef3; --muted:#9db0bf; --card:#1a252e; --back:#1b2b27;
+    --line:#32424f; --ink:#e7eef3; --good:#58c58c; --again:#ee8a77; --focus:#8ab4ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10171d; --fg:#e7eef3; --muted:#9db0bf; --card:#1a252e; --back:#1b2b27;
+  --line:#32424f; --ink:#e7eef3; --good:#58c58c; --again:#ee8a77; --focus:#8ab4ff;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:17px; line-height:1.5;
+}
+main{max-width:720px; margin:0 auto; padding:20px 16px 40px}
+h1{font-size:1.5rem; margin:0 0 2px; line-height:1.2}
+.sub{margin:0 0 16px; color:var(--muted); font-size:.95rem}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px}
+.chip{
+  font:inherit; font-size:.92rem; padding:7px 12px; border-radius:999px; cursor:pointer;
+  border:2px solid var(--line); background:transparent; color:var(--fg);
+}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.opts{display:flex; flex-wrap:wrap; gap:16px; margin-bottom:14px; font-size:.92rem; color:var(--muted)}
+.opts label{display:flex; align-items:center; gap:6px; cursor:pointer}
+.opts input{width:18px; height:18px}
+.meter{display:flex; align-items:center; gap:12px; margin-bottom:14px; font-size:.92rem; color:var(--muted)}
+.bar{flex:1; height:8px; background:var(--line); border-radius:4px; overflow:hidden}
+.bar>i{display:block; height:100%; width:0; background:var(--good); transition:width .25s}
+.scene{perspective:1400px}
+.card{
+  display:grid; position:relative; cursor:pointer; min-height:300px;
+  transform-style:preserve-3d; transition:transform .45s;
+  outline:none; border-radius:10px;
+}
+.card.flipped{transform:rotateY(180deg)}
+.card:focus-visible{outline:3px solid var(--focus); outline-offset:4px}
+.face{
+  grid-area:1/1; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  background:var(--card); border:2px solid var(--line); border-top:10px solid var(--tc,#555);
+  border-radius:10px; padding:20px 22px 22px; display:flex; flex-direction:column; justify-content:center;
+}
+.face.back{transform:rotateY(180deg); background:var(--back)}
+.tag{position:absolute; top:12px; left:22px; font-size:.82rem; color:var(--muted)}
+.hint{position:absolute; bottom:10px; right:18px; font-size:.82rem; color:var(--muted)}
+.text{white-space:pre-line; font-size:1.25rem; line-height:1.45; margin:18px 0 14px}
+.back .text{font-size:1.08rem; white-space:normal}
+.ln{margin:0 0 7px}
+.ln strong{font-weight:700}
+.note{font-size:.84rem; color:var(--muted); border-top:1px solid var(--line); padding-top:8px; margin-top:4px}
+.row{display:flex; gap:10px; margin-top:16px}
+.btn{
+  font:inherit; font-weight:700; padding:13px 14px; border-radius:8px; cursor:pointer; flex:1;
+  border:2px solid var(--line); background:var(--card); color:var(--fg);
+}
+.btn.again{border-color:var(--again); color:var(--again)}
+.btn.good{border-color:var(--good); color:var(--good)}
+.btn:focus-visible,.chip:focus-visible,.opts input:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
+.btn.nav{flex:0 0 auto; min-width:72px}
+.btn:disabled{opacity:.5; cursor:default}
+.pos{text-align:center; color:var(--muted); font-size:.92rem; align-self:center; flex:1}
+.panel{background:var(--card); border:2px solid var(--line); border-radius:10px; padding:28px 22px; text-align:center}
+.panel h2{margin:0 0 6px; font-size:1.3rem}
+.panel p{margin:0 0 16px; color:var(--muted)}
+.panel .row{justify-content:center}
+.panel .btn{flex:0 1 220px}
+.keys{margin-top:18px; font-size:.84rem; color:var(--muted)}
+.save{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); font-size:.9rem; color:var(--muted)}
+.save p{margin:0 0 10px}
+.save .row{margin-top:8px}
+.save .btn{flex:0 1 auto; font-size:.9rem; padding:9px 14px}
+#sync{display:block; margin-top:8px; font-size:.84rem}
+@media (max-width:480px){ .text{font-size:1.12rem} .back .text{font-size:1.04rem} }
+@media (prefers-reduced-motion: reduce){ .card,.bar>i{transition:none} }
+</style>
+
+<!--
+=====================================================================
+ DECK DATA. To update this deck, replace everything between the two
+ marker comments (or just edit the CARDS list).
+
+ RULES FOR CARDS (these keep everyone's saved progress correct):
+   1. Every card has a permanent numeric id.
+   2. New cards get the next unused id (see NEXT FREE ID below). Never reuse an id.
+   3. You may edit wording, change the topic or move cards around freely.
+      Progress follows the id, not the position.
+   4. To remove a card, add r:1 to it (retired). Do not delete it
+      and do not give its id to a different card.
+   5. Optional fields: n:"small note shown under the answer".
+
+ apiUrl: leave "" to keep progress in the page address (Option B).
+ To keep progress on your server instead (Option A), upload
+ progress.php and set apiUrl to "progress.php" (see README.txt).
+=====================================================================
+-->
+<script id="deck-data">
+var CONFIG={
+  deckId:"year8-science",
+  title:"Year 8 Science flashcards",
+  subtitle:"Built from the six knowledge organisers: 8.3, 8.4, 9.1, 9.3, 10.3 and 10.4.",
+  apiUrl:""   // leave empty for progress-in-the-URL; set to "progress.php" for server storage
+};
+
+/* ===== TOPICS ===== */
+var TOPICS=[
+  {id:"breathing", name:"8.3 Breathing", c:"#1f7f94"},
+  {id:"digestion", name:"8.4 Digestion", c:"#5a9a1f"},
+  {id:"interdependence", name:"9.1 Interdependence", c:"#8a3f9e"},
+  {id:"respiration", name:"9.3 Respiration", c:"#c2410c"},
+  {id:"evolution", name:"10.3 Evolution", c:"#a8741a"},
+  {id:"inheritance", name:"10.4 Inheritance", c:"#2c5fb3"}
+];
+
+/* ===== CARDS. NEXT FREE ID: 116 ===== */
+var CARDS=[
+  {id:1, t:"breathing", q:"What is gas exchange?", a:"The process of taking in oxygen and giving out carbon dioxide."},
+  {id:2, t:"breathing", q:"Which system does gas exchange take place in?", a:"The respiratory system."},
+  {id:3, t:"breathing", q:"Why is the air we breathe out different from the air we breathe in?", a:"We use oxygen in respiration and produce carbon dioxide, so the proportions of the gases change."},
+  {id:4, t:"breathing", q:"What do inhale and exhale mean?", a:"Inhale: breathe air in.\nExhale: breathe air out."},
+  {id:5, t:"breathing", q:"Name the parts air passes through on its way to the alveoli.", a:"Nose or mouth, then trachea (windpipe), bronchi, bronchioles, then alveoli (air sacs)."},
+  {id:6, t:"breathing", q:"What are the intercostal muscles?", a:"The muscles between the ribs."},
+  {id:7, t:"breathing", q:"INHALING: what happens to the intercostal muscles and ribs?", a:"The muscles between the ribs contract and the ribs are pulled up and out."},
+  {id:8, t:"breathing", q:"INHALING: what happens to the diaphragm?", a:"It contracts and flattens."},
+  {id:9, t:"breathing", q:"INHALING: what happens to chest volume and pressure, and what is the result?", a:"Volume of the chest increases, pressure inside decreases, so air rushes into the lungs."},
+  {id:10, t:"breathing", q:"EXHALING: what happens to the intercostal muscles and ribs?", a:"The muscles between the ribs relax and the ribs are pulled in and down."},
+  {id:11, t:"breathing", q:"EXHALING: what happens to the diaphragm?", a:"It relaxes and moves up."},
+  {id:12, t:"breathing", q:"EXHALING: what happens to chest volume and pressure, and what is the result?", a:"Volume of the chest decreases, pressure inside increases, so air is forced out of the lungs."},
+  {id:13, t:"breathing", q:"What is a drug?", a:"A chemical that affects the way our body works."},
+  {id:14, t:"breathing", q:"What is a medicinal drug? Give examples.", a:"A drug used in medicine that benefits health. Examples: antibiotics and painkillers.\nIf not taken in the correct way, it can harm health."},
+  {id:15, t:"breathing", q:"What is a recreational drug? Give examples.", a:"A drug taken by people for enjoyment. It normally has no health benefits and can be harmful. Examples: alcohol and tobacco."},
+  {id:16, t:"breathing", q:"What is addiction?", a:"When your body gets so used to a drug that it feels it cannot cope without it."},
+  {id:17, t:"breathing", q:"What are withdrawal symptoms?", a:"What someone with an addiction experiences when they stop taking the drug."},
+  {id:18, t:"breathing", q:"What is respiration?", a:"The process in which energy is released from the molecules of food which you eat. (See 9.3.)"},
+  {id:19, t:"digestion", q:"What does the salivary gland do?", a:"Produces a digestive juice, which is added into the mouth."},
+  {id:20, t:"digestion", q:"What does the liver do in digestion?", a:"Produces bile, which helps digestion."},
+  {id:21, t:"digestion", q:"What happens in the stomach?", a:"It adds acids, and it is where digestion occurs."},
+  {id:22, t:"digestion", q:"What does the pancreas do?", a:"Produces a digestive juice, which is added into the small intestine."},
+  {id:23, t:"digestion", q:"What happens in the small intestine?", a:"Digestion is completed, and absorption of soluble food occurs."},
+  {id:24, t:"digestion", q:"What happens in the large intestine?", a:"Water is absorbed from the undigested food, which then produces faeces."},
+  {id:25, t:"digestion", q:"Put the food's journey in order, from mouth to the end.", a:"Mouth, oesophagus, stomach, small intestine, large intestine, rectum, anus."},
+  {id:26, t:"digestion", q:"What is an enzyme?", a:"A biological catalyst. Enzymes speed up the digestion of nutrients."},
+  {id:27, t:"digestion", q:"What is a catalyst?", a:"A substance that speeds up a reaction.", n:"Not defined on the organiser: this is the standard definition."},
+  {id:28, t:"digestion", q:"What is the lock and key model?", a:"The way an enzyme and a nutrient bind with each other. Each enzyme is specific to one nutrient."},
+  {id:29, t:"digestion", q:"What do carbohydrases do?", a:"Break carbohydrates down into simple sugars."},
+  {id:30, t:"digestion", q:"What do proteases do?", a:"Break proteins down into amino acids."},
+  {id:31, t:"digestion", q:"What does lipase do?", a:"Breaks lipids (fats) down into fatty acids and glycerol."},
+  {id:32, t:"digestion", q:"What do carbohydrates, proteins and lipids get broken down into?", a:"Carbohydrates: simple sugars.\nProteins: amino acids.\nLipids: fatty acids and glycerol."},
+  {id:33, t:"digestion", q:"What is a nutrient?", a:"A substance your body needs from food in order to function.", n:"Not defined on the organiser: this is the standard definition."},
+  {id:34, t:"digestion", q:"What is a balanced diet?", a:"Eating the right amount of nutrients for your body to function."},
+  {id:35, t:"digestion", q:"What is a deficiency?", a:"Not eating enough of a nutrient (an unbalanced diet) can lead to a deficiency."},
+  {id:36, t:"digestion", q:"Role of carbohydrates?", a:"The main source of energy."},
+  {id:37, t:"digestion", q:"Role of lipids?", a:"Fats and oils provide energy."},
+  {id:38, t:"digestion", q:"Role of proteins?", a:"Growth and repair of cells and tissues."},
+  {id:39, t:"digestion", q:"Role of vitamins and minerals?", a:"Essential in small amounts to keep you healthy."},
+  {id:40, t:"digestion", q:"Role of water?", a:"Needed in all cells and body fluids."},
+  {id:41, t:"digestion", q:"Role of fibre?", a:"Provides bulk to food to keep it moving through the gut."},
+  {id:42, t:"interdependence", q:"What is interdependence?", a:"The way in which living organisms rely on each other to survive."},
+  {id:43, t:"interdependence", q:"What is a food chain?", a:"It shows the direction in which energy flows when one organism eats another."},
+  {id:44, t:"interdependence", q:"What do the arrows in a food chain show?", a:"The direction in which the energy flows."},
+  {id:45, t:"interdependence", q:"What is a food web?", a:"It shows how a number of different food chains are connected."},
+  {id:46, t:"interdependence", q:"What is a producer?", a:"An organism that starts the food chain. It converts energy from the Sun, making its own food (often a plant or algae)."},
+  {id:47, t:"interdependence", q:"What is a consumer?", a:"An organism that eats other organisms. Herbivores and carnivores are types of consumer.", n:"Not defined on the organiser: this is the standard definition."},
+  {id:48, t:"interdependence", q:"What is a herbivore?", a:"A type of consumer that eats the producer."},
+  {id:49, t:"interdependence", q:"What is a carnivore?", a:"A type of consumer that eats other animals."},
+  {id:50, t:"interdependence", q:"What is an apex predator?", a:"The last link in a food chain."},
+  {id:51, t:"interdependence", q:"What is prey?", a:"Organisms which are eaten by other organisms."},
+  {id:52, t:"interdependence", q:"What is a predator?", a:"Organisms which eat the prey."},
+  {id:53, t:"interdependence", q:"What is a population?", a:"All of the organisms which live in one area (the organiser's wording)."},
+  {id:54, t:"interdependence", q:"What is an ecosystem?", a:"All of the organisms found in a particular location, and the area in which they live, including both the living and non-living features."},
+  {id:55, t:"interdependence", q:"What is a community?", a:"All of the different populations of organisms living together in an ecosystem.", n:"The organiser's wording for this one is muddled, so this is the standard definition. Check your class notes."},
+  {id:56, t:"interdependence", q:"What is a habitat?", a:"The area in which the organisms live."},
+  {id:57, t:"interdependence", q:"What is a niche?", a:"The specific role an organism has within an ecosystem. Example: a panda's diet is 99% bamboo."},
+  {id:58, t:"interdependence", q:"What is competition?", a:"The process in which organisms compete with one another for resources."},
+  {id:59, t:"interdependence", q:"What do animals compete for? What do plants compete for?", a:"Animals: food, water, space and mates.\nPlants: light, water, space and minerals."},
+  {id:60, t:"interdependence", q:"Who are the best competitors?", a:"Those who have adapted in order to best gain these resources."},
+  {id:61, t:"interdependence", q:"What is the predator-prey relationship?", a:"As the number of predators increases, the number of prey decreases (more are eaten).\nAs the number of predators decreases, the number of prey increases (fewer are eaten)."},
+  {id:62, t:"interdependence", q:"What does the snowshoe hare and Canadian lynx graph show?", a:"A predator-prey relationship: the number of prey and the number of predators rise and fall in a repeating pattern over time."},
+  {id:63, t:"interdependence", q:"What can disrupt a food chain?", a:"If one of the organisms dies out."},
+  {id:64, t:"interdependence", q:"What happens if the producer dies out?", a:"The rest of the food chain will also die out, unless they have a different food source."},
+  {id:65, t:"interdependence", q:"What happens if the consumer population dies out?", a:"The number of organisms they eat will increase, unless they are eaten by another organism."},
+  {id:66, t:"interdependence", q:"What is bioaccumulation?", a:"The process by which chemicals such as pesticides and insecticides build up along a food chain."},
+  {id:67, t:"respiration", q:"What is respiration?", a:"The process in which energy is released from the molecules of food which you eat."},
+  {id:68, t:"respiration", q:"Where in the cell does respiration happen?", a:"In the mitochondria."},
+  {id:69, t:"respiration", q:"What is aerobic respiration?", a:"Respiration that involves oxygen. It is more efficient because all of the food is broken down to release energy."},
+  {id:70, t:"respiration", q:"Word equation for aerobic respiration?", a:"glucose + oxygen → carbon dioxide + water"},
+  {id:71, t:"respiration", q:"How is glucose transported to the cells?", a:"In the blood plasma."},
+  {id:72, t:"respiration", q:"How is oxygen transported to the cells?", a:"In red blood cells, by binding with haemoglobin."},
+  {id:73, t:"respiration", q:"What is plasma?", a:"The part of the blood that transports glucose to the cells."},
+  {id:74, t:"respiration", q:"What are red blood cells?", a:"Cells that carry oxygen to the cells of the body, by binding it to haemoglobin."},
+  {id:75, t:"respiration", q:"What is haemoglobin?", a:"The substance in red blood cells that oxygen binds to so it can be transported."},
+  {id:76, t:"respiration", q:"What happens to the carbon dioxide produced?", a:"It is a waste product. It is transported from the cells to the lungs to be exhaled."},
+  {id:77, t:"respiration", q:"What is anaerobic respiration, and when is it used?", a:"Respiration which does not use oxygen. It is used when the body cannot supply the cells with enough oxygen for aerobic respiration."},
+  {id:78, t:"respiration", q:"Word equation for anaerobic respiration (in muscles)?", a:"glucose → lactic acid + carbon dioxide"},
+  {id:79, t:"respiration", q:"Aerobic or anaerobic: which releases more energy?", a:"Aerobic. Anaerobic respiration releases less energy."},
+  {id:80, t:"respiration", q:"What is lactic acid?", a:"Produced through anaerobic respiration. It can cause muscle cramps."},
+  {id:81, t:"respiration", q:"What is oxygen debt?", a:"When lactic acid builds up because there is not enough oxygen in the blood supply to break it down."},
+  {id:82, t:"respiration", q:"What is fermentation?", a:"A type of anaerobic respiration which occurs in yeast."},
+  {id:83, t:"respiration", q:"How is fermentation different from anaerobic respiration in muscles?", a:"Instead of lactic acid, yeast produces ethanol (a type of alcohol)."},
+  {id:84, t:"respiration", q:"Word equation for fermentation?", a:"glucose → ethanol + carbon dioxide"},
+  {id:85, t:"respiration", q:"What is fermentation used for?", a:"Making alcohol to drink, and allowing bread and cakes to rise."},
+  {id:86, t:"respiration", q:"Put the steps of making alcohol by fermentation in order.", a:"1. Plant sugar is added to a large container (the plant may need crushing).\n2. Yeast is added to ferment the sugar into alcohol.\n3. The container is sealed to keep out oxygen and other microorganisms.\n4. The mixture is left until the sugar has fermented into alcohol.\n5. Sediment is removed, often by filtration.\n6. The liquid is bottled or put into barrels."},
+  {id:87, t:"evolution", q:"What is evolution?", a:"The gradual development of organisms over millions of years into the organisms we see on Earth today."},
+  {id:88, t:"evolution", q:"What is natural selection, and who came up with it?", a:"Charles Darwin's concept that only the best adapted animals survive to pass on their genes, while weaker animals die out."},
+  {id:89, t:"evolution", q:"What are the four steps of natural selection?", a:"1. Organisms show variation in characteristics caused by their genes.\n2. Those with the best adaptations survive and reproduce; weaker organisms die out and do not pass on their genes.\n3. Genes from the successful organisms are passed on to the next generation.\n4. Over a long time the best adaptations continue to be passed on, which can lead to a new species forming."},
+  {id:90, t:"evolution", q:"Explain the giraffe example of natural selection.", a:"Only giraffes with the longest necks could eat from trees; shorter-necked ones could not and died out. Only the gene for long necks was passed on, so all giraffes ended up with long necks."},
+  {id:91, t:"evolution", q:"Explain the peppered moth example.", a:"Before the Industrial Revolution, pale moths were camouflaged against tree bark. After it, trees were blackened by soot, so dark moths were better camouflaged and pale moths were easily seen."},
+  {id:92, t:"evolution", q:"What are genes (in natural selection)?", a:"What the organisms with the best adaptations pass on to the next generation. A gene is a section of DNA that holds the information for a particular characteristic."},
+  {id:93, t:"evolution", q:"What does it mean when a species is extinct?", a:"All of the species has died out."},
+  {id:94, t:"evolution", q:"What is the fossil record?", a:"It shows us that animals have existed in the past which have now become extinct."},
+  {id:95, t:"evolution", q:"What can cause extinction?", a:"Changes to the environment, destruction of habitat, new diseases, introduction of new predators, increased competition."},
+  {id:96, t:"evolution", q:"What is biodiversity?", a:"The variety of species within an ecosystem. When a species becomes extinct, biodiversity is reduced."},
+  {id:97, t:"evolution", q:"Why is a diverse population more likely to survive environmental changes?", a:"The more diverse a population is, the more likely they are to survive environmental changes."},
+  {id:98, t:"evolution", q:"What is competition?", a:"The process in which organisms compete with one another for resources. Increased competition can cause extinction."},
+  {id:99, t:"evolution", q:"What is a population?", a:"All of the organisms which live in one area."},
+  {id:100, t:"inheritance", q:"What are characteristics?", a:"Features that are passed along from parents to their offspring."},
+  {id:101, t:"inheritance", q:"How much genetic information comes from each parent, and how is it passed on?", a:"Half from each parent, through the sex cells in the process of fertilisation."},
+  {id:102, t:"inheritance", q:"How many chromosomes in a sperm cell, an egg cell and an embryo nucleus?", a:"Sperm: 23. Egg: 23. Embryo nucleus: 46."},
+  {id:103, t:"inheritance", q:"What is DNA?", a:"The material which contains all of the genetic information. It is in the shape of a double helix."},
+  {id:104, t:"inheritance", q:"What is a gene?", a:"A section of DNA which holds the information for a particular characteristic."},
+  {id:105, t:"inheritance", q:"What is a chromosome?", a:"A long strand of DNA which holds many genes. Humans have 46 in the nucleus of cells."},
+  {id:106, t:"inheritance", q:"How are DNA, genes and chromosomes related?", a:"DNA is the double helix. A gene is a section of DNA. A chromosome is a long strand of DNA that holds many genes."},
+  {id:107, t:"inheritance", q:"What is an allele?", a:"One of the two different genes which can code for the same characteristic. One is inherited from each parent."},
+  {id:108, t:"inheritance", q:"What is a dominant allele?", a:"An allele that causes the characteristic to be displayed even if it is with another allele. Shown with a capital letter."},
+  {id:109, t:"inheritance", q:"What is a recessive allele?", a:"An allele that is not displayed unless there are two of the same allele. It is the characteristic least likely to be shown. Shown with a small letter."},
+  {id:110, t:"inheritance", q:"What is a Punnett square?", a:"A diagram used to predict the inheritance of characteristics."},
+  {id:111, t:"inheritance", q:"B = brown eyes (dominant), b = blue eyes (recessive). What eye colour do Bb and bb give?", a:"Bb: brown eyes, because B is dominant.\nbb: blue eyes, because both alleles are recessive."},
+  {id:112, t:"inheritance", q:"Parents are Bb and bb. What are the possible offspring?", a:"Two offspring boxes are Bb (brown eyes) and two are bb (blue eyes)."},
+  {id:113, t:"inheritance", q:"What is genetic modification?", a:"The process scientists use to alter the genes of an organism."},
+  {id:114, t:"inheritance", q:"Give examples of genetic modification.", a:"Altering cotton to produce higher yields; altering bacteria genes to produce medicines; altering crops to produce their own insecticides."},
+  {id:115, t:"inheritance", q:"What is a mutation?", a:"A change in the genes (DNA) of an organism.", n:"Not defined on the organiser: this is the standard definition."}
+];
+/* ===== END OF CARDS ===== */
+</script>
+</head>
+<body>
+<main>
+  <h1 id="h1"></h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="chips" id="chips" role="group" aria-label="Choose a topic"></div>
+
+  <div class="opts">
+    <label><input type="checkbox" id="shuffle"> Shuffle</label>
+    <label><input type="checkbox" id="onlyLearning"> Hide cards I know</label>
+  </div>
+
+  <div class="meter"><span id="count"></span><div class="bar"><i id="fill"></i></div></div>
+
+  <div id="stage"></div>
+
+  <p class="keys">Keyboard: Space flips the card, left and right arrows move between cards.</p>
+
+  <section class="save" aria-label="Saving your progress">
+    <p id="saveText"></p>
+    <div class="row">
+      <button class="btn" type="button" id="copyLink">Copy my progress link</button>
+      <button class="btn" type="button" id="resetAll">Reset progress</button>
+    </div>
+    <span id="sync" role="status"></span>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var apiUrl = (CONFIG.apiUrl || "");
+  var MAXID = 20000;                 // sanity limit for ids found in links or server data
+  var tmap = {}; TOPICS.forEach(function(t){ tmap[t.id] = t; });
+  var CARDS_ALL = CARDS.slice();
+
+  // status: card id -> 1 (known) | 2 (still learning) | 0 (cleared). ts: card id -> ms timestamp (used only with a server).
+  var status = {}, ts = {}, token = null;
+  var topic = "all", deck = [], pos = 0, flipped = false, finished = false, touched = false;
+
+  var $stage = document.getElementById("stage"),
+      $chips = document.getElementById("chips"),
+      $count = document.getElementById("count"),
+      $fill = document.getElementById("fill"),
+      $shuffle = document.getElementById("shuffle"),
+      $only = document.getElementById("onlyLearning"),
+      $sync = document.getElementById("sync");
+
+  document.title = CONFIG.title;
+  document.getElementById("h1").textContent = CONFIG.title;
+  document.getElementById("sub").textContent = CONFIG.subtitle || "";
+
+  function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  /* ---------- base64url helpers ---------- */
+  function b64u(bytes){
+    var s = ""; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function unb64u(str){
+    try {
+      str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "=";
+      var s = atob(str), out = new Uint8Array(s.length);
+      for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+      return out;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- progress encoded in the page address (Option B) ----------
+     Format: byte 0 = format version (1), then 2 bits per card id (id 1 = lowest bits of byte 1):
+     00 unseen, 01 known, 10 still learning. Trailing zero bytes are trimmed. */
+  function encodeState(){
+    var maxId = 0, id;
+    for (id in status) { var n = +id; if (n > maxId && (status[id] === 1 || status[id] === 2)) maxId = n; }
+    var bytes = new Uint8Array(1 + Math.ceil(maxId / 4));
+    bytes[0] = 1;
+    for (id in status) {
+      var v = status[id]; if (v !== 1 && v !== 2) continue;
+      var i = (+id) - 1; bytes[1 + (i >> 2)] |= v << ((i & 3) * 2);
+    }
+    var end = bytes.length; while (end > 1 && bytes[end - 1] === 0) end--;
+    return b64u(bytes.subarray(0, end));
+  }
+  function decodeState(str){
+    var bytes = unb64u(str);
+    if (!bytes || bytes.length < 1 || bytes[0] !== 1 || bytes.length > 1 + MAXID / 4) return null;
+    var out = {};
+    for (var i = 0; i < (bytes.length - 1) * 4; i++) {
+      var v = (bytes[1 + (i >> 2)] >> ((i & 3) * 2)) & 3;
+      if (v === 1 || v === 2) out[i + 1] = v;
+    }
+    return out;
+  }
+
+  /* ---------- sanitising anything read from storage, links or the server ---------- */
+  function cleanMap(m, allowed){
+    var out = {};
+    if (!m || typeof m !== "object") return out;
+    for (var k in m) {
+      if (!Object.prototype.hasOwnProperty.call(m, k)) continue;
+      var id = +k, v = m[k];
+      if (!(id >= 1 && id <= MAXID && id === Math.floor(id))) continue;
+      if (allowed(v)) out[id] = v;
+    }
+    return out;
+  }
+  function okStatus(v){ return v === 0 || v === 1 || v === 2; }
+  function okTs(v){ return typeof v === "number" && isFinite(v) && v >= 0; }
+
+  /* ---------- local storage (cache and fallback; wrapped because it can be unavailable) ---------- */
+  function storeKey(){ return "flashcards:" + CONFIG.deckId + (token ? ":" + token : ""); }
+  function loadLocal(){
+    try {
+      var raw = localStorage.getItem(storeKey());
+      if (raw) { var d = JSON.parse(raw); status = cleanMap(d.s, okStatus); ts = cleanMap(d.t, okTs); }
+    } catch (e) {}
+  }
+  function saveLocal(){
+    try { localStorage.setItem(storeKey(), JSON.stringify({ s: status, t: ts })); } catch (e) {}
+  }
+
+  /* ---------- page address handling ---------- */
+  function hashParams(){ return new URLSearchParams(location.hash.replace(/^#/, "")); }
+  function baseUrl(){ return location.href.split("#")[0]; }
+  function setHash(h){
+    var url = baseUrl() + (h ? "#" + h : "");
+    try { history.replaceState(null, "", url); } catch (e) { try { location.hash = h; } catch (e2) {} }
+  }
+  function hasMarks(){ for (var k in status) if (status[k] === 1 || status[k] === 2) return true; return false; }
+  function syncHash(){ if (!apiUrl) setHash(hasMarks() ? "p=" + encodeState() : ""); }
+  function shareUrl(){ return baseUrl() + "#" + (apiUrl ? "k=" + token : "p=" + encodeState()); }
+
+  /* ---------- server sync (Option A) ---------- */
+  var pushTimer = null;
+  function setSync(msg){ $sync.textContent = msg || ""; }
+  function api(method, body){
+    return fetch(apiUrl, {
+      method: method, cache: "no-store",
+      headers: { "X-Token": token, "X-Deck": CONFIG.deckId, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function mergeServer(d){
+    var ss = cleanMap(d && d.s, okStatus), st = cleanMap(d && d.t, okTs), ids = {}, k;
+    for (k in ss) ids[k] = 1; for (k in st) ids[k] = 1; for (k in status) ids[k] = 1;
+    var localNewer = false;
+    for (k in ids) {
+      var sT = st[k] || 0, lT = ts[k] || 0;
+      if (sT > lT) { status[k] = ss[k] | 0; ts[k] = sT; }
+      else if (lT > sT) { localNewer = true; }
+    }
+    saveLocal();
+    return localNewer;
+  }
+  function pull(){
+    setSync("Loading saved progress\u2026");
+    return api("GET").then(function(d){
+      var localNewer = mergeServer(d);
+      setSync("Progress synced.");
+      if (!touched) build(); else progress();
+      if (localNewer) push();
+    }).catch(function(){ setSync("Could not reach the server. Progress is saved on this device for now."); });
+  }
+  function push(){
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function(){
+      api("POST", { s: status, t: ts }).then(function(d){
+        mergeServer(d); setSync("Progress saved."); progress();
+      }).catch(function(){ setSync("Could not reach the server. Progress is saved on this device for now."); });
+    }, 600);
+  }
+
+  function setMark(id, v){
+    status[id] = v; ts[id] = Date.now();
+    saveLocal();
+    if (apiUrl) push(); else syncHash();
+  }
+
+  /* ---------- deck handling ---------- */
+  function inTopic(c){ return topic === "all" || c.t === topic; }
+  function live(){ return CARDS_ALL.filter(function(c){ return !c.r; }); }
+
+  function build(){
+    deck = live().filter(function(c){
+      if (!inTopic(c)) return false;
+      if ($only.checked && status[c.id] === 1) return false;
+      return true;
+    });
+    if ($shuffle.checked) {
+      for (var j = deck.length - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = deck[j]; deck[j] = deck[k]; deck[k] = t; }
+    }
+    pos = 0; flipped = false; finished = false; touched = false;
+    render();
+  }
+
+  function progress(){
+    var total = 0, got = 0;
+    live().forEach(function(c){ if (!inTopic(c)) return; total++; if (status[c.id] === 1) got++; });
+    $count.textContent = got + " of " + total + " known";
+    $fill.style.width = (total ? Math.round(got / total * 100) : 0) + "%";
+  }
+
+  function chips(){
+    $chips.textContent = "";
+    [{ id: "all", name: "All topics" }].concat(TOPICS).forEach(function(t){
+      var b = el("button", "chip", t.name); b.type = "button";
+      b.setAttribute("aria-pressed", String(topic === t.id));
+      b.addEventListener("click", function(){ topic = t.id; chips(); build(); });
+      $chips.appendChild(b);
+    });
+  }
+
+  function fmt(box, text){
+    text.split("\n").forEach(function(line){
+      var d = el("div", "ln");
+      var m = /^([A-Z][^:.\n]{0,28}):\s(.*)$/.exec(line);
+      if (m) { d.appendChild(el("strong", null, m[1] + ": ")); d.appendChild(document.createTextNode(m[2])); }
+      else d.textContent = line;
+      box.appendChild(d);
+    });
+  }
+
+  function flip(){
+    if (finished || !deck.length) return;
+    flipped = !flipped; touched = true;
+    var c = document.getElementById("card");
+    if (c) { c.classList.toggle("flipped", flipped); c.setAttribute("aria-label", flipped ? "Answer side. Press space to see the question." : "Question side. Press space to see the answer."); }
+  }
+  function go(d){
+    if (!deck.length) return;
+    var np = pos + d; if (np < 0) return;
+    touched = true;
+    if (np >= deck.length) { finished = true; flipped = false; render(); return; }
+    pos = np; flipped = false; render();
+  }
+  function mark(v){
+    if (finished || !deck.length) return;
+    setMark(deck[pos].id, v);
+    go(1);
+  }
+
+  function render(){
+    progress();
+    $stage.textContent = "";
+
+    if (!deck.length) {
+      var p = el("div", "panel");
+      p.appendChild(el("h2", null, "No cards to show"));
+      p.appendChild(el("p", null, "You know every card in this selection. Untick \u201cHide cards I know\u201d to revise them again."));
+      $stage.appendChild(p); return;
+    }
+
+    if (finished) {
+      var got = 0, again = 0, rest = 0;
+      deck.forEach(function(c){ var s = status[c.id]; if (s === 1) got++; else { rest++; if (s === 2) again++; } });
+      var p2 = el("div", "panel");
+      p2.appendChild(el("h2", null, "Round finished"));
+      p2.appendChild(el("p", null, got + " known, " + again + " still learning, out of " + deck.length + " cards in this round."));
+      var r = el("div", "row");
+      if (rest > 0) {
+        var b1 = el("button", "btn again", "Review the " + rest + " not yet known"); b1.type = "button";
+        b1.addEventListener("click", function(){
+          deck = deck.filter(function(c){ return status[c.id] !== 1; });
+          pos = 0; finished = false; flipped = false; render();
+        });
+        r.appendChild(b1);
+      }
+      var b2 = el("button", "btn", "Start again"); b2.type = "button";
+      b2.addEventListener("click", build);
+      r.appendChild(b2);
+      p2.appendChild(r);
+      $stage.appendChild(p2); return;
+    }
+
+    var c = deck[pos], t = tmap[c.t] || { name: "", c: "#555" };
+    var scene = el("div", "scene");
+    var card = el("div", "card" + (flipped ? " flipped" : ""));
+    card.id = "card"; card.tabIndex = 0; card.setAttribute("role", "button");
+    card.setAttribute("aria-label", "Question side. Press space to see the answer.");
+    card.style.setProperty("--tc", t.c);
+
+    var f = el("div", "face front");
+    f.appendChild(el("span", "tag", t.name));
+    f.appendChild(el("div", "text", c.q));
+    f.appendChild(el("span", "hint", "Tap to flip"));
+
+    var b = el("div", "face back");
+    b.appendChild(el("span", "tag", t.name));
+    var tx = el("div", "text"); fmt(tx, c.a); b.appendChild(tx);
+    if (c.n) b.appendChild(el("div", "note", c.n));
+
+    card.appendChild(f); card.appendChild(b);
+    card.addEventListener("click", flip);
+    scene.appendChild(card);
+    $stage.appendChild(scene);
+
+    var row = el("div", "row");
+    var prev = el("button", "btn nav", "Back"); prev.type = "button"; prev.disabled = pos === 0;
+    prev.addEventListener("click", function(){ go(-1); });
+    var ps = el("span", "pos", "Card " + (pos + 1) + " of " + deck.length);
+    var next = el("button", "btn nav", "Skip"); next.type = "button";
+    next.addEventListener("click", function(){ go(1); });
+    row.appendChild(prev); row.appendChild(ps); row.appendChild(next);
+    $stage.appendChild(row);
+
+    var row2 = el("div", "row");
+    var a = el("button", "btn again", "Still learning"); a.type = "button";
+    a.addEventListener("click", function(){ mark(2); });
+    var g = el("button", "btn good", "I know it"); g.type = "button";
+    g.addEventListener("click", function(){ mark(1); });
+    row2.appendChild(a); row2.appendChild(g);
+    $stage.appendChild(row2);
+  }
+
+  /* ---------- progress link and reset ---------- */
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return false; });
+    }
+    return Promise.resolve(false);
+  }
+  document.getElementById("copyLink").addEventListener("click", function(){
+    var url = shareUrl();
+    copyText(url).then(function(ok){
+      if (ok) setSync("Link copied. Paste it somewhere safe, or bookmark this page.");
+      else window.prompt("Copy this link to keep your progress:", url);
+    });
+  });
+  document.getElementById("resetAll").addEventListener("click", function(){
+    if (!window.confirm("Clear all progress for this deck?")) return;
+    var now = Date.now();
+    Object.keys(status).forEach(function(k){ status[k] = 0; ts[k] = now; });
+    saveLocal();
+    if (apiUrl) push(); else syncHash();
+    build();
+  });
+
+  document.getElementById("saveText").textContent = apiUrl
+    ? "Your progress is saved on the server against a private code in this page's address. Bookmark this page to come back to it. Anyone with the link can see and change your progress."
+    : "Your progress is stored in this page's address. Bookmark the page, or copy the link, to carry on from another device. The address updates as you mark cards, so use the latest link.";
+
+  /* ---------- events ---------- */
+  document.addEventListener("keydown", function(e){
+    var tg = e.target && e.target.tagName;
+    if ((tg === "INPUT" || tg === "BUTTON") && (e.key === " " || e.key === "Enter")) return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); }
+    else if (e.key === "ArrowRight") go(1);
+    else if (e.key === "ArrowLeft") go(-1);
+  });
+  $shuffle.addEventListener("change", build);
+  $only.addEventListener("change", build);
+
+  /* ---------- start up ---------- */
+  var h = hashParams();
+  if (apiUrl) {
+    var k = h.get("k");
+    if (!k || !/^[A-Za-z0-9_-]{22}$/.test(k)) {
+      var rb = new Uint8Array(16); crypto.getRandomValues(rb); k = b64u(rb);
+      setHash("k=" + k);
+    }
+    token = k;
+    loadLocal();
+    chips(); build();
+    pull();
+  } else {
+    loadLocal();
+    var p = h.get("p");
+    if (p !== null) {
+      var fromUrl = decodeState(p);
+      if (fromUrl) { status = fromUrl; ts = {}; saveLocal(); }   // a link in the address bar wins over this device's copy
+    }
+    syncHash();
+    chips(); build();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flashcards</title>
+<!-- Optional font. Delete the next two lines to avoid contacting Google; the page falls back to a system font. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef3f6; --fg:#16212b; --muted:#566573; --card:#ffffff; --back:#f7fbf4;
+  --line:#c9d5de; --ink:#16212b; --good:#1f7a4d; --again:#b3402f; --focus:#0b57d0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10171d; --fg:#e7eef3; --muted:#9db0bf; --card:#1a252e; --back:#1b2b27;
+    --line:#32424f; --ink:#e7eef3; --good:#58c58c; --again:#ee8a77; --focus:#8ab4ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10171d; --fg:#e7eef3; --muted:#9db0bf; --card:#1a252e; --back:#1b2b27;
+  --line:#32424f; --ink:#e7eef3; --good:#58c58c; --again:#ee8a77; --focus:#8ab4ff;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:17px; line-height:1.5;
+}
+main{max-width:720px; margin:0 auto; padding:20px 16px 40px}
+h1{font-size:1.5rem; margin:0 0 2px; line-height:1.2}
+.sub{margin:0 0 16px; color:var(--muted); font-size:.95rem}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px}
+.chip{
+  font:inherit; font-size:.92rem; padding:7px 12px; border-radius:999px; cursor:pointer;
+  border:2px solid var(--line); background:transparent; color:var(--fg);
+}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.opts{display:flex; flex-wrap:wrap; gap:16px; margin-bottom:14px; font-size:.92rem; color:var(--muted)}
+.opts label{display:flex; align-items:center; gap:6px; cursor:pointer}
+.opts input{width:18px; height:18px}
+.meter{display:flex; align-items:center; gap:12px; margin-bottom:14px; font-size:.92rem; color:var(--muted)}
+.bar{flex:1; height:8px; background:var(--line); border-radius:4px; overflow:hidden}
+.bar>i{display:block; height:100%; width:0; background:var(--good); transition:width .25s}
+.scene{perspective:1400px}
+.card{
+  display:grid; position:relative; cursor:pointer; min-height:300px;
+  transform-style:preserve-3d; transition:transform .45s;
+  outline:none; border-radius:10px;
+}
+.card.flipped{transform:rotateY(180deg)}
+.card:focus-visible{outline:3px solid var(--focus); outline-offset:4px}
+.face{
+  grid-area:1/1; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  background:var(--card); border:2px solid var(--line); border-top:10px solid var(--tc,#555);
+  border-radius:10px; padding:20px 22px 22px; display:flex; flex-direction:column; justify-content:center;
+}
+.face.back{transform:rotateY(180deg); background:var(--back)}
+.tag{position:absolute; top:12px; left:22px; font-size:.82rem; color:var(--muted)}
+.hint{position:absolute; bottom:10px; right:18px; font-size:.82rem; color:var(--muted)}
+.text{white-space:pre-line; font-size:1.25rem; line-height:1.45; margin:18px 0 14px}
+.back .text{font-size:1.08rem; white-space:normal}
+.ln{margin:0 0 7px}
+.ln strong{font-weight:700}
+.note{font-size:.84rem; color:var(--muted); border-top:1px solid var(--line); padding-top:8px; margin-top:4px}
+.row{display:flex; gap:10px; margin-top:16px}
+.btn{
+  font:inherit; font-weight:700; padding:13px 14px; border-radius:8px; cursor:pointer; flex:1;
+  border:2px solid var(--line); background:var(--card); color:var(--fg);
+}
+.btn.again{border-color:var(--again); color:var(--again)}
+.btn.good{border-color:var(--good); color:var(--good)}
+.btn:focus-visible,.chip:focus-visible,.opts input:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
+.btn.nav{flex:0 0 auto; min-width:72px}
+.btn:disabled{opacity:.5; cursor:default}
+.pos{text-align:center; color:var(--muted); font-size:.92rem; align-self:center; flex:1}
+.panel{background:var(--card); border:2px solid var(--line); border-radius:10px; padding:28px 22px; text-align:center}
+.panel h2{margin:0 0 6px; font-size:1.3rem}
+.panel p{margin:0 0 16px; color:var(--muted)}
+.panel .row{justify-content:center}
+.panel .btn{flex:0 1 220px}
+.keys{margin-top:18px; font-size:.84rem; color:var(--muted)}
+.save{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); font-size:.9rem; color:var(--muted)}
+.save p{margin:0 0 10px}
+.save .row{margin-top:8px}
+.save .btn{flex:0 1 auto; font-size:.9rem; padding:9px 14px}
+#sync{display:block; margin-top:8px; font-size:.84rem}
+@media (max-width:480px){ .text{font-size:1.12rem} .back .text{font-size:1.04rem} }
+@media (prefers-reduced-motion: reduce){ .card,.bar>i{transition:none} }
+</style>
+
+<!--
+=====================================================================
+ DECK DATA. To update this deck, replace everything between the two
+ marker comments (or just edit the CARDS list).
+
+ RULES FOR CARDS (these keep everyone's saved progress correct):
+   1. Every card has a permanent numeric id.
+   2. New cards get the next unused id (see NEXT FREE ID below). Never reuse an id.
+   3. You may edit wording, change the topic or move cards around freely.
+      Progress follows the id, not the position.
+   4. To remove a card, add r:1 to it (retired). Do not delete it
+      and do not give its id to a different card.
+   5. Optional fields: n:"small note shown under the answer".
+
+ apiUrl: leave "" to keep progress in the page address (Option B).
+ To keep progress on your server instead (Option A), upload
+ progress.php and set apiUrl to "progress.php" (see README.txt).
+=====================================================================
+-->
+<script id="deck-data">
+var CONFIG={
+  deckId:"year8-history",
+  title:"Year 8 History flashcards",
+  subtitle:"Power, Industry and Society, 1745–1901. Built from the Cycle 1 knowledge organiser.",
+  apiUrl:""   // leave empty for progress-in-the-URL; set to "progress.php" for server storage
+};
+
+/* ===== TOPICS ===== */
+var TOPICS=[
+  {id:"words", name:"Key words", c:"#2c5fb3"},
+  {id:"events", name:"Dates and events", c:"#b4531a"},
+  {id:"people", name:"Key people", c:"#7a3a95"}
+];
+
+/* ===== CARDS. NEXT FREE ID: 38 ===== */
+var CARDS=[
+  {id:1, t:"words", q:"What is an empire?", a:"A group of countries ruled by a single leader or state."},
+  {id:2, t:"words", q:"What are missionaries?", a:"People sent to promote Christianity in another country."},
+  {id:3, t:"words", q:"What is a colony?", a:"A country under another country’s rule."},
+  {id:4, t:"words", q:"What is a contemporary source?", a:"A piece of evidence from the period studied."},
+  {id:5, t:"words", q:"What is an interpretation?", a:"A piece of evidence from after the period studied. Historians often write interpretations."},
+  {id:6, t:"words", q:"What is the difference between a contemporary source and an interpretation?", a:"A contemporary source comes from the period being studied. An interpretation comes from after that period (for example, a historian’s book)."},
+  {id:7, t:"words", q:"A diary written in 1800 and a history textbook written in 2020: which is the contemporary source and which is the interpretation?", a:"The 1800 diary is a contemporary source (from the period studied). The 2020 textbook is an interpretation (from after the period)."},
+  {id:8, t:"words", q:"What is slavery?", a:"The practice of other people owning another person."},
+  {id:9, t:"words", q:"What does enslaved mean?", a:"The removal of someone’s freedom."},
+  {id:10, t:"words", q:"What is abolition?", a:"The act of ending or stopping something."},
+  {id:11, t:"words", q:"What was the Transatlantic Slave Trade?", a:"The selling of African people as slaves by Europeans. This happened around the Atlantic Ocean."},
+  {id:12, t:"words", q:"What was the Middle Passage?", a:"The journey from Africa to the Americas in the Transatlantic Slave Trade."},
+  {id:13, t:"words", q:"What is a plantation?", a:"A farm where specific crops are grown and harvested, for example cotton and sugar."},
+  {id:14, t:"words", q:"What was the Industrial Revolution?", a:"A dramatic change in the way people worked, from working by hand in homes to working in factories using machines."},
+  {id:15, t:"words", q:"What was a workhouse?", a:"A place where the very poor went to work in exchange for food and shelter."},
+  {id:16, t:"words", q:"What is poverty?", a:"The state of being extremely poor, for example not having enough money for basic needs such as food, water and housing."},
+  {id:17, t:"words", q:"What is a pauper?", a:"A very poor person who relies on charity to help them afford basic needs."},
+  {id:18, t:"words", q:"What are slums?", a:"Part of a city or town where many poor people live. They are usually overcrowded, badly maintained and disease ridden."},
+  {id:19, t:"words", q:"What is a trade union?", a:"A group of workers united to improve working conditions."},
+  {id:20, t:"events", q:"Which years does the “Power, Industry and Society” unit cover?", a:"1745 to 1901."},
+  {id:21, t:"events", q:"What happened in 1807?", a:"The Abolition of Slavery (as it is named on the organiser).", n:"The 1807 Act ended the slave trade in the British Empire. Slavery itself was abolished in the British colonies later, in 1833. Check which wording your teacher expects. Not on the organiser."},
+  {id:22, t:"events", q:"What is the Zong slave ship remembered for?", a:"In 1781 the crew threw more than 130 enslaved Africans overboard, so the owners could claim insurance. Granville Sharp took up the case.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:23, t:"events", q:"What happened in 1834?", a:"The Poor Law (the Poor Law Amendment Act).", n:"It grouped local workhouses into larger union workhouses. Detail not on the organiser."},
+  {id:24, t:"events", q:"What happened in the Chesham workhouse riot in 1835?", a:"Chesham people protested against paupers being taken from the town’s workhouse to the new union workhouse in Amersham. A crowd blocked the move, a magistrate was injured, the Riot Act was read, and rioters were later tried and imprisoned.", n:"Not on the organiser: taken from local museum sources. Check against your class notes."},
+  {id:25, t:"events", q:"Why are the Poor Law (1834) and the Chesham riot (1835) linked?", a:"The 1834 Poor Law moved paupers into larger union workhouses. People in Chesham protested at their relations being moved to Amersham, which led to the 1835 riot.", n:"Not on the organiser: taken from local museum sources. Check against your class notes."},
+  {id:26, t:"events", q:"What are the Match Stick Girls (1888) remembered for?", a:"A strike by young women and girls at the Bryant and May match factory in London, over low pay and dangerous working conditions. They helped form a trade union.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:27, t:"events", q:"What was the British Empire?", a:"The group of countries and colonies ruled by Britain.", n:"Built from the organiser’s definitions of empire and colonies."},
+  {id:28, t:"people", q:"Who was Queen Victoria?", a:"Queen of the United Kingdom from 1837 until her death in 1901, the year this unit ends.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:29, t:"people", q:"Who was Lord Curzon?", a:"A British politician who was Viceroy of India (the monarch’s representative there) from 1899 to 1905.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:30, t:"people", q:"Who was William Wilberforce?", a:"An MP who campaigned in Parliament to abolish the slave trade.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:31, t:"people", q:"Who was Thomas Clarkson?", a:"A campaigner who gathered evidence about the slave trade and worked for its abolition.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:32, t:"people", q:"Who was Toussaint L’Ouverture?", a:"A leader of the revolution of enslaved people in Saint-Domingue (now Haiti).", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:33, t:"people", q:"Who was Olaudah Equiano?", a:"A formerly enslaved African who wrote about his experiences and campaigned for abolition.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:34, t:"people", q:"Who was Hannah More?", a:"A writer who campaigned against slavery.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:35, t:"people", q:"Who was Granville Sharp?", a:"A campaigner against slavery who took up the case of the Zong slave ship.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:36, t:"people", q:"Who was Josiah Wedgwood?", a:"A potter who made a famous anti-slavery medallion, “Am I Not a Man and a Brother?”.", n:"Not on the organiser: added from general history. Check against your class notes."},
+  {id:37, t:"people", q:"Who was Kender Mason?", a:"A London merchant (born 1722) who made part of his fortune from trading enslaved Africans, and bought land around Amersham. He was involved in the slave trade, not a campaigner against it.", n:"Not on the organiser: taken from local museum sources. Check against your class notes."}
+];
+/* ===== END OF CARDS ===== */
+</script>
+</head>
+<body>
+<main>
+  <h1 id="h1"></h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="chips" id="chips" role="group" aria-label="Choose a topic"></div>
+
+  <div class="opts">
+    <label><input type="checkbox" id="shuffle"> Shuffle</label>
+    <label><input type="checkbox" id="onlyLearning"> Hide cards I know</label>
+  </div>
+
+  <div class="meter"><span id="count"></span><div class="bar"><i id="fill"></i></div></div>
+
+  <div id="stage"></div>
+
+  <p class="keys">Keyboard: Space flips the card, left and right arrows move between cards.</p>
+
+  <section class="save" aria-label="Saving your progress">
+    <p id="saveText"></p>
+    <div class="row">
+      <button class="btn" type="button" id="copyLink">Copy my progress link</button>
+      <button class="btn" type="button" id="resetAll">Reset progress</button>
+    </div>
+    <span id="sync" role="status"></span>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var apiUrl = (CONFIG.apiUrl || "");
+  var MAXID = 20000;                 // sanity limit for ids found in links or server data
+  var tmap = {}; TOPICS.forEach(function(t){ tmap[t.id] = t; });
+  var CARDS_ALL = CARDS.slice();
+
+  // status: card id -> 1 (known) | 2 (still learning) | 0 (cleared). ts: card id -> ms timestamp (used only with a server).
+  var status = {}, ts = {}, token = null;
+  var topic = "all", deck = [], pos = 0, flipped = false, finished = false, touched = false;
+
+  var $stage = document.getElementById("stage"),
+      $chips = document.getElementById("chips"),
+      $count = document.getElementById("count"),
+      $fill = document.getElementById("fill"),
+      $shuffle = document.getElementById("shuffle"),
+      $only = document.getElementById("onlyLearning"),
+      $sync = document.getElementById("sync");
+
+  document.title = CONFIG.title;
+  document.getElementById("h1").textContent = CONFIG.title;
+  document.getElementById("sub").textContent = CONFIG.subtitle || "";
+
+  function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  /* ---------- base64url helpers ---------- */
+  function b64u(bytes){
+    var s = ""; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function unb64u(str){
+    try {
+      str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "=";
+      var s = atob(str), out = new Uint8Array(s.length);
+      for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+      return out;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- progress encoded in the page address (Option B) ----------
+     Format: byte 0 = format version (1), then 2 bits per card id (id 1 = lowest bits of byte 1):
+     00 unseen, 01 known, 10 still learning. Trailing zero bytes are trimmed. */
+  function encodeState(){
+    var maxId = 0, id;
+    for (id in status) { var n = +id; if (n > maxId && (status[id] === 1 || status[id] === 2)) maxId = n; }
+    var bytes = new Uint8Array(1 + Math.ceil(maxId / 4));
+    bytes[0] = 1;
+    for (id in status) {
+      var v = status[id]; if (v !== 1 && v !== 2) continue;
+      var i = (+id) - 1; bytes[1 + (i >> 2)] |= v << ((i & 3) * 2);
+    }
+    var end = bytes.length; while (end > 1 && bytes[end - 1] === 0) end--;
+    return b64u(bytes.subarray(0, end));
+  }
+  function decodeState(str){
+    var bytes = unb64u(str);
+    if (!bytes || bytes.length < 1 || bytes[0] !== 1 || bytes.length > 1 + MAXID / 4) return null;
+    var out = {};
+    for (var i = 0; i < (bytes.length - 1) * 4; i++) {
+      var v = (bytes[1 + (i >> 2)] >> ((i & 3) * 2)) & 3;
+      if (v === 1 || v === 2) out[i + 1] = v;
+    }
+    return out;
+  }
+
+  /* ---------- sanitising anything read from storage, links or the server ---------- */
+  function cleanMap(m, allowed){
+    var out = {};
+    if (!m || typeof m !== "object") return out;
+    for (var k in m) {
+      if (!Object.prototype.hasOwnProperty.call(m, k)) continue;
+      var id = +k, v = m[k];
+      if (!(id >= 1 && id <= MAXID && id === Math.floor(id))) continue;
+      if (allowed(v)) out[id] = v;
+    }
+    return out;
+  }
+  function okStatus(v){ return v === 0 || v === 1 || v === 2; }
+  function okTs(v){ return typeof v === "number" && isFinite(v) && v >= 0; }
+
+  /* ---------- local storage (cache and fallback; wrapped because it can be unavailable) ---------- */
+  function storeKey(){ return "flashcards:" + CONFIG.deckId + (token ? ":" + token : ""); }
+  function loadLocal(){
+    try {
+      var raw = localStorage.getItem(storeKey());
+      if (raw) { var d = JSON.parse(raw); status = cleanMap(d.s, okStatus); ts = cleanMap(d.t, okTs); }
+    } catch (e) {}
+  }
+  function saveLocal(){
+    try { localStorage.setItem(storeKey(), JSON.stringify({ s: status, t: ts })); } catch (e) {}
+  }
+
+  /* ---------- page address handling ---------- */
+  function hashParams(){ return new URLSearchParams(location.hash.replace(/^#/, "")); }
+  function baseUrl(){ return location.href.split("#")[0]; }
+  function setHash(h){
+    var url = baseUrl() + (h ? "#" + h : "");
+    try { history.replaceState(null, "", url); } catch (e) { try { location.hash = h; } catch (e2) {} }
+  }
+  function hasMarks(){ for (var k in status) if (status[k] === 1 || status[k] === 2) return true; return false; }
+  function syncHash(){ if (!apiUrl) setHash(hasMarks() ? "p=" + encodeState() : ""); }
+  function shareUrl(){ return baseUrl() + "#" + (apiUrl ? "k=" + token : "p=" + encodeState()); }
+
+  /* ---------- server sync (Option A) ---------- */
+  var pushTimer = null;
+  function setSync(msg){ $sync.textContent = msg || ""; }
+  function api(method, body){
+    return fetch(apiUrl, {
+      method: method, cache: "no-store",
+      headers: { "X-Token": token, "X-Deck": CONFIG.deckId, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function mergeServer(d){
+    var ss = cleanMap(d && d.s, okStatus), st = cleanMap(d && d.t, okTs), ids = {}, k;
+    for (k in ss) ids[k] = 1; for (k in st) ids[k] = 1; for (k in status) ids[k] = 1;
+    var localNewer = false;
+    for (k in ids) {
+      var sT = st[k] || 0, lT = ts[k] || 0;
+      if (sT > lT) { status[k] = ss[k] | 0; ts[k] = sT; }
+      else if (lT > sT) { localNewer = true; }
+    }
+    saveLocal();
+    return localNewer;
+  }
+  function pull(){
+    setSync("Loading saved progress\u2026");
+    return api("GET").then(function(d){
+      var localNewer = mergeServer(d);
+      setSync("Progress synced.");
+      if (!touched) build(); else progress();
+      if (localNewer) push();
+    }).catch(function(){ setSync("Could not reach the server. Progress is saved on this device for now."); });
+  }
+  function push(){
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function(){
+      api("POST", { s: status, t: ts }).then(function(d){
+        mergeServer(d); setSync("Progress saved."); progress();
+      }).catch(function(){ setSync("Could not reach the server. Progress is saved on this device for now."); });
+    }, 600);
+  }
+
+  function setMark(id, v){
+    status[id] = v; ts[id] = Date.now();
+    saveLocal();
+    if (apiUrl) push(); else syncHash();
+  }
+
+  /* ---------- deck handling ---------- */
+  function inTopic(c){ return topic === "all" || c.t === topic; }
+  function live(){ return CARDS_ALL.filter(function(c){ return !c.r; }); }
+
+  function build(){
+    deck = live().filter(function(c){
+      if (!inTopic(c)) return false;
+      if ($only.checked && status[c.id] === 1) return false;
+      return true;
+    });
+    if ($shuffle.checked) {
+      for (var j = deck.length - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = deck[j]; deck[j] = deck[k]; deck[k] = t; }
+    }
+    pos = 0; flipped = false; finished = false; touched = false;
+    render();
+  }
+
+  function progress(){
+    var total = 0, got = 0;
+    live().forEach(function(c){ if (!inTopic(c)) return; total++; if (status[c.id] === 1) got++; });
+    $count.textContent = got + " of " + total + " known";
+    $fill.style.width = (total ? Math.round(got / total * 100) : 0) + "%";
+  }
+
+  function chips(){
+    $chips.textContent = "";
+    [{ id: "all", name: "All topics" }].concat(TOPICS).forEach(function(t){
+      var b = el("button", "chip", t.name); b.type = "button";
+      b.setAttribute("aria-pressed", String(topic === t.id));
+      b.addEventListener("click", function(){ topic = t.id; chips(); build(); });
+      $chips.appendChild(b);
+    });
+  }
+
+  function fmt(box, text){
+    text.split("\n").forEach(function(line){
+      var d = el("div", "ln");
+      var m = /^([A-Z][^:.\n]{0,28}):\s(.*)$/.exec(line);
+      if (m) { d.appendChild(el("strong", null, m[1] + ": ")); d.appendChild(document.createTextNode(m[2])); }
+      else d.textContent = line;
+      box.appendChild(d);
+    });
+  }
+
+  function flip(){
+    if (finished || !deck.length) return;
+    flipped = !flipped; touched = true;
+    var c = document.getElementById("card");
+    if (c) { c.classList.toggle("flipped", flipped); c.setAttribute("aria-label", flipped ? "Answer side. Press space to see the question." : "Question side. Press space to see the answer."); }
+  }
+  function go(d){
+    if (!deck.length) return;
+    var np = pos + d; if (np < 0) return;
+    touched = true;
+    if (np >= deck.length) { finished = true; flipped = false; render(); return; }
+    pos = np; flipped = false; render();
+  }
+  function mark(v){
+    if (finished || !deck.length) return;
+    setMark(deck[pos].id, v);
+    go(1);
+  }
+
+  function render(){
+    progress();
+    $stage.textContent = "";
+
+    if (!deck.length) {
+      var p = el("div", "panel");
+      p.appendChild(el("h2", null, "No cards to show"));
+      p.appendChild(el("p", null, "You know every card in this selection. Untick \u201cHide cards I know\u201d to revise them again."));
+      $stage.appendChild(p); return;
+    }
+
+    if (finished) {
+      var got = 0, again = 0, rest = 0;
+      deck.forEach(function(c){ var s = status[c.id]; if (s === 1) got++; else { rest++; if (s === 2) again++; } });
+      var p2 = el("div", "panel");
+      p2.appendChild(el("h2", null, "Round finished"));
+      p2.appendChild(el("p", null, got + " known, " + again + " still learning, out of " + deck.length + " cards in this round."));
+      var r = el("div", "row");
+      if (rest > 0) {
+        var b1 = el("button", "btn again", "Review the " + rest + " not yet known"); b1.type = "button";
+        b1.addEventListener("click", function(){
+          deck = deck.filter(function(c){ return status[c.id] !== 1; });
+          pos = 0; finished = false; flipped = false; render();
+        });
+        r.appendChild(b1);
+      }
+      var b2 = el("button", "btn", "Start again"); b2.type = "button";
+      b2.addEventListener("click", build);
+      r.appendChild(b2);
+      p2.appendChild(r);
+      $stage.appendChild(p2); return;
+    }
+
+    var c = deck[pos], t = tmap[c.t] || { name: "", c: "#555" };
+    var scene = el("div", "scene");
+    var card = el("div", "card" + (flipped ? " flipped" : ""));
+    card.id = "card"; card.tabIndex = 0; card.setAttribute("role", "button");
+    card.setAttribute("aria-label", "Question side. Press space to see the answer.");
+    card.style.setProperty("--tc", t.c);
+
+    var f = el("div", "face front");
+    f.appendChild(el("span", "tag", t.name));
+    f.appendChild(el("div", "text", c.q));
+    f.appendChild(el("span", "hint", "Tap to flip"));
+
+    var b = el("div", "face back");
+    b.appendChild(el("span", "tag", t.name));
+    var tx = el("div", "text"); fmt(tx, c.a); b.appendChild(tx);
+    if (c.n) b.appendChild(el("div", "note", c.n));
+
+    card.appendChild(f); card.appendChild(b);
+    card.addEventListener("click", flip);
+    scene.appendChild(card);
+    $stage.appendChild(scene);
+
+    var row = el("div", "row");
+    var prev = el("button", "btn nav", "Back"); prev.type = "button"; prev.disabled = pos === 0;
+    prev.addEventListener("click", function(){ go(-1); });
+    var ps = el("span", "pos", "Card " + (pos + 1) + " of " + deck.length);
+    var next = el("button", "btn nav", "Skip"); next.type = "button";
+    next.addEventListener("click", function(){ go(1); });
+    row.appendChild(prev); row.appendChild(ps); row.appendChild(next);
+    $stage.appendChild(row);
+
+    var row2 = el("div", "row");
+    var a = el("button", "btn again", "Still learning"); a.type = "button";
+    a.addEventListener("click", function(){ mark(2); });
+    var g = el("button", "btn good", "I know it"); g.type = "button";
+    g.addEventListener("click", function(){ mark(1); });
+    row2.appendChild(a); row2.appendChild(g);
+    $stage.appendChild(row2);
+  }
+
+  /* ---------- progress link and reset ---------- */
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return false; });
+    }
+    return Promise.resolve(false);
+  }
+  document.getElementById("copyLink").addEventListener("click", function(){
+    var url = shareUrl();
+    copyText(url).then(function(ok){
+      if (ok) setSync("Link copied. Paste it somewhere safe, or bookmark this page.");
+      else window.prompt("Copy this link to keep your progress:", url);
+    });
+  });
+  document.getElementById("resetAll").addEventListener("click", function(){
+    if (!window.confirm("Clear all progress for this deck?")) return;
+    var now = Date.now();
+    Object.keys(status).forEach(function(k){ status[k] = 0; ts[k] = now; });
+    saveLocal();
+    if (apiUrl) push(); else syncHash();
+    build();
+  });
+
+  document.getElementById("saveText").textContent = apiUrl
+    ? "Your progress is saved on the server against a private code in this page's address. Bookmark this page to come back to it. Anyone with the link can see and change your progress."
+    : "Your progress is stored in this page's address. Bookmark the page, or copy the link, to carry on from another device. The address updates as you mark cards, so use the latest link.";
+
+  /* ---------- events ---------- */
+  document.addEventListener("keydown", function(e){
+    var tg = e.target && e.target.tagName;
+    if ((tg === "INPUT" || tg === "BUTTON") && (e.key === " " || e.key === "Enter")) return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); }
+    else if (e.key === "ArrowRight") go(1);
+    else if (e.key === "ArrowLeft") go(-1);
+  });
+  $shuffle.addEventListener("change", build);
+  $only.addEventListener("change", build);
+
+  /* ---------- start up ---------- */
+  var h = hashParams();
+  if (apiUrl) {
+    var k = h.get("k");
+    if (!k || !/^[A-Za-z0-9_-]{22}$/.test(k)) {
+      var rb = new Uint8Array(16); crypto.getRandomValues(rb); k = b64u(rb);
+      setHash("k=" + k);
+    }
+    token = k;
+    loadLocal();
+    chips(); build();
+    pull();
+  } else {
+    loadLocal();
+    var p = h.get("p");
+    if (p !== null) {
+      var fromUrl = decodeState(p);
+      if (fromUrl) { status = fromUrl; ts = {}; saveLocal(); }   // a link in the address bar wins over this device's copy
+    }
+    syncHash();
+    chips(); build();
+  }
+})();
+</script>
+</body>
+</html>
